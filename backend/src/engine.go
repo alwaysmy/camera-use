@@ -93,7 +93,8 @@ type Engine struct {
 	rgb    *CameraSession
 	ir     *CameraSession
 	params Params
-	cfg    Config
+	cfg     Config
+	wantCfg Config // 期望配置（懒加载时用）
 	stats  Stats
 
 	rgbDev, irDev DeviceInfo
@@ -113,6 +114,7 @@ type Engine struct {
 	castMu              sync.Mutex
 	castOK              bool
 	castA, castB        float64
+	mcpMode             bool
 	darkOn              bool // 是否启用暗场补偿（可临时关掉，数据保留）
 	// /frame.jpg 的短 TTL 缓存：旁路不限速时每轮都会来取图，
 	// 每次都跑一遍完整融合渲染+JPEG 编码的话，CPU 会被吃光（实测过）。
@@ -194,6 +196,20 @@ func (b *broadcaster) latest() []byte {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.data
+}
+
+// MCPMode —— 是否 MCP 模式（决定要不要做空闲释放）
+func (e *Engine) MCPMode() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.mcpMode
+}
+
+// SetMCPMode —— main 里 -mcp 时调用
+func (e *Engine) SetMCPMode(on bool) {
+	e.mu.Lock()
+	e.mcpMode = on
+	e.mu.Unlock()
 }
 
 func NewEngine() *Engine {
@@ -605,6 +621,9 @@ func preferFor(codec string, withIR bool) []string {
 }
 
 func (e *Engine) Start(codec string, w, h int, useIR bool) error {
+	e.mu.Lock()
+	e.wantCfg = Config{Codec: codec, W: w, H: h, IR: useIR}
+	e.mu.Unlock()
 	cams := ListCameras()
 	if len(cams) == 0 {
 		return fmt.Errorf("没有发现任何相机")

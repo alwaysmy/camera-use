@@ -28,6 +28,28 @@ camera_observe {what:"pose"}         人形 + 17 点骨架
 ```
 坐标**一律是像素**，原点左上。旁路结果带 `vision_age_ms`：**超过 ~1000ms 就别当实时用**。
 
+
+## 即用即开：相机与 YOLO 都是按需的
+
+MCP 进程常驻，但**相机和旁路不常驻**：
+
+| 行为 | 说明 |
+|---|---|
+| **进程启动** | 毫秒级（不碰相机） |
+| **第一次需要画面的调用** | 自动打开相机，**约 1~2 秒**（这几秒的等待是正常的，别以为卡住） |
+| `camera_look {detect:false}`（默认） | **不启动 YOLO**，只拍照 → 快 |
+| `camera_look {detect:true}` | **按需拉起 YOLO 旁路**，首次约 **5~10 秒**加载模型，之后约 60ms/帧 |
+| `camera_observe {what:"face/pose/hand/all"}` | 同样会按需拉起旁路（可显式传 `"yolo":false` 只要原生检测） |
+| `camera_observe {what:"summary/person/state/events"}` | **不需要旁路**，最快 |
+| 空闲 60 秒无调用 | **相机自动释放**（让 Windows Hello / 其他程序能用） |
+| 空闲 120 秒无调用 | **旁路自动关闭**（模型加载贵，不值得常驻） |
+
+**给 agent 的实操建议**：
+- 只想"看一眼"→ `camera_look {view:"fuse", quality:70, max_width:640}`，**别开 detect**
+- 需要"有没有人/在哪"→ `camera_observe {what:"person"}`（用 IR 差分+运动，**不用旁路，快**）
+- 需要人脸框/手势/骨架 → 才用 `detect:true` 或 `what:"hand"`，并**接受首次 5~10 秒**
+- 连续多次调用会共用同一次相机/旁路启动，**不要每次调用都以为要重付启动成本**
+
 ## 五个必须避开的坑
 
 | 坑 | 现象 | 规避 |
