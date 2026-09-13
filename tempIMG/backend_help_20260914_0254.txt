@@ -1,0 +1,43 @@
+Usage of D:\MyProjects\AI\camera_use\backend\camera_backend.exe:
+  -codec string
+    	码流 mjpg|yuy2|nv12|auto (default "mjpg")
+  -facemin int
+    	检测最小窗口边长 (default 48)
+  -facenn int
+    	最少邻居票数 (default 3)
+  -facescale float
+    	检测尺度步长 (default 1.15)
+  -facetest string
+    	对指定图片跑一次人脸检测（诊断用）
+  -facewin string
+    	诊断：对指定窗口逐级打印判定 x,y,w,h
+  -h int
+    	RGB 高 (default 480)
+  -list
+    	只列出设备
+  -mcp
+    	以 MCP 服务器模式运行（stdio，给 agent 用）
+  -no-ir
+    	不启用 IR
+  -open
+    	启动后打开浏览器
+  -port int
+    	监听端口 (default 8770)
+  -probe
+    	原生采集链路自检
+  -root string
+    	资源根目录（默认=可执行文件所在目录，一般不用改）
+  -selftest
+    	图像算子 + 自动标定自检
+  -vision
+    	启动时自动拉起旁路视觉进程（YOLO 人脸+骨架，需 python+onnxruntime）
+  -vision-fps float
+    	旁路推理频率，0=不限速（默认）
+  -w int
+    	RGB 宽 (default 640)
+  -wb
+    	探测相机的 IAMVideoProcAmp（白平衡/增益/饱和度等）
+  -wb-auto
+    	切回自动白平衡（配合 -wb）
+  -wb-set int
+    	设置白平衡值（配合 -wb） (default -1)

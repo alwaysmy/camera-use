@@ -56,7 +56,22 @@ func mcpErr(id any, code int, msg string) {
 
 // RunMCP —— 阻塞在 stdin 上服务 MCP 请求
 func RunMCP(e *Engine) {
-	fmt.Fprintln(os.Stderr, "[mcp] 已就绪（stdio）—— 把本进程接进 agent 的 MCP 配置即可")
+	// 打印相机真实状态：MCP 模式**不预开相机**（首次工具调用才懒加载）。
+	// 这行既是诊断，也是"有没有误开相机"的判据 ——
+	// 注意别用"另一个进程还能不能打开相机"来判断：实测本机相机允许多进程共享打开。
+	rgbS, irS, _, _ := e.Snapshot()
+	camState := "未打开（首次工具调用时懒加载，空闲 60s 自动释放）"
+	if rgbS != nil || irS != nil {
+		camState = "**已打开**（不该出现在 MCP 启动时 —— 检查懒加载是否漏了路径）"
+	}
+	fmt.Fprintf(os.Stderr, "[mcp] 已就绪（stdio）｜相机 %s｜把本进程接进 agent 的 MCP 配置即可\n", camState)
+
+	// 调用日志：记录「谁、什么时候、调了什么」——
+	// 没有它时只能看到副作用（摄像头被打开、进程被拉起），查不到是谁在调。
+	lg := newMCPLogger()
+	defer lg.close()
+	fmt.Fprintf(os.Stderr, "[mcp] 调用日志: %s\n", lg.LogPath())
+
 	sc := bufio.NewScanner(os.Stdin)
 	sc.Buffer(make([]byte, 1<<20), 1<<24)
 	for sc.Scan() {
@@ -71,6 +86,18 @@ func RunMCP(e *Engine) {
 		}
 		switch req.Method {
 		case "initialize":
+			// 客户端自报身份（"被谁调用"的第一来源）
+			var ci struct {
+				ClientInfo struct {
+					Name    string `json:"name"`
+					Version string `json:"version"`
+				} `json:"clientInfo"`
+			}
+			_ = json.Unmarshal(req.Params, &ci)
+			if ci.ClientInfo.Name != "" {
+				lg.client = ci.ClientInfo.Name + "/" + ci.ClientInfo.Version
+			}
+			lg.add("initialize", map[string]any{"client_info": ci.ClientInfo})
 			mcpReply(req.ID, map[string]any{
 				"protocolVersion": "2024-11-05",
 				"capabilities":    map[string]any{"tools": map[string]any{}},
@@ -86,6 +113,7 @@ func RunMCP(e *Engine) {
 		case "ping":
 			mcpReply(req.ID, map[string]any{})
 		case "tools/list":
+			lg.add("tools/list", nil)
 			mcpReply(req.ID, map[string]any{"tools": mcpTools()})
 		case "tools/call":
 			var p struct {
@@ -93,6 +121,7 @@ func RunMCP(e *Engine) {
 				Arguments map[string]any `json:"arguments"`
 			}
 			json.Unmarshal(req.Params, &p)
+			lg.add("tools/call", map[string]any{"tool": p.Name, "args": p.Arguments})
 			res, err := mcpCall(e, p.Name, p.Arguments)
 			if err != nil {
 				mcpReply(req.ID, mcpResult{IsError: true,

@@ -85,20 +85,28 @@ func main() {
 	}
 
 	e := NewEngine()
+	// -mcp：走 MCP（stdio）给 agent 用
+	//
+	// ⚠ 必须在 e.Start() **之前**返回：MCP 模式**不预开相机**，相机在工具调用时
+	// 由 EnsureOpen() 懒加载（空闲 60s 再释放）。
+	// 否则每次 MCP 客户端启动服务器进程都会打开摄像头——占着设备、亮着指示灯，
+	// 而 agent 可能整轮都不调用相机工具。
+	if *mcp {
+		e.SetMCPMode(true)
+		if *vision {
+			visionSidecarOn = true
+			visionSidecarFPS = *visionFPS
+		}
+		RunMCP(e)
+		return
+	}
+
+	// 以下为 HTTP 控制台模式：这里才需要常开相机
 	if err := e.Start(*codec, *width, *height, !*noIR); err != nil {
 		fmt.Fprintln(os.Stderr, "启动失败:", err)
 		os.Exit(1)
 	}
-	// -mcp：走 MCP（stdio）给 agent 用；否则开 HTTP 控制台
-if *mcp {
-if *vision {
-visionSidecarOn = true
-visionSidecarFPS = *visionFPS
-}
-RunMCP(e)
-return
-}
-addr := fmt.Sprintf("127.0.0.1:%d", *port)
+	addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	_, _, cfg := e.Stats()
 	fmt.Printf("[backend] 资源目录 %s\n", RootDir())
 	fmt.Printf("[backend] Go %s / %d 核 | RGB %s %dx%d | IR %v\n",
