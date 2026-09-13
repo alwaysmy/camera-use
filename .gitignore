@@ -45,3 +45,6 @@ archive/test-output/
 # MCP 调用日志（运行时产生）
 backend/logs/
 logs/
+
+# 测试图与个人照片（非工程内容，不入库）
+tempIMG/
