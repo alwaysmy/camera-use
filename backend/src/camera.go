@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -442,8 +441,8 @@ func (d *DarkField) ApplyYCbCr(img *image.YCbCr) *image.YCbCr {
 }
 
 func (d *DarkField) save(tag string) error {
-	_ = os.MkdirAll("calib", 0o755)
-	f, err := os.Create(filepath.Join("calib", "dark_"+tag+".gob"))
+	_ = os.MkdirAll(P("calib"), 0o755)
+	f, err := os.Create(P("calib", "dark_"+tag+".gob"))
 	if err != nil {
 		return err
 	}
@@ -452,7 +451,7 @@ func (d *DarkField) save(tag string) error {
 }
 
 func loadDark(tag string) *DarkField {
-	f, err := os.Open(filepath.Join("calib", "dark_"+tag+".gob"))
+	f, err := os.Open(P("calib", "dark_"+tag+".gob"))
 	if err != nil {
 		return nil
 	}

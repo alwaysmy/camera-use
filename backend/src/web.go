@@ -416,9 +416,9 @@ func (e *Engine) handleDumpRaw(w http.ResponseWriter, r *http.Request) {
 		jsonOut(w, nil, fmt.Errorf("还没有帧"))
 		return
 	}
-	_ = os.MkdirAll("captures", 0o755)
+	_ = os.MkdirAll(P("captures"), 0o755)
 	ts := time.Now().Format("20060102_150405")
-	bin := filepath.Join("captures", "raw_"+ts+".bin")
+	bin := filepath.Join(P("captures"), "raw_"+ts+".bin")
 	_ = os.WriteFile(bin, data, 0o644)
 	meta := map[string]any{"subtype": sub, "w": cw, "h": chh, "bytes": len(data), "file": bin}
 	jsonOut(w, meta, nil)
@@ -496,7 +496,7 @@ func (e *Engine) handleWavelength(w http.ResponseWriter, r *http.Request) {
 	waveMu.Lock()
 	defer waveMu.Unlock()
 
-	path := filepath.Join("calib", "wavelength.json")
+	path := filepath.Join(P("calib"), "wavelength.json")
 	state := map[string]map[string]float64{}
 	if b, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(b, &state)

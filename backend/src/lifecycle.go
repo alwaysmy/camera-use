@@ -105,14 +105,14 @@ func EnsureSidecar(fps float64) error {
 	if running {
 		return nil
 	}
-	if _, err := os.Stat("tools/vision_sidecar.py"); err != nil {
+	if _, err := os.Stat(P("tools", "vision_sidecar.py")); err != nil {
 		return fmt.Errorf("缺少 tools/vision_sidecar.py")
 	}
-	if _, err := os.Stat("models/yolov8n-pose.onnx"); err != nil {
+	if _, err := os.Stat(P("models", "yolov8n-pose.onnx")); err != nil {
 		return fmt.Errorf("缺少 ONNX 模型（先跑 python tools/export_models.py）")
 	}
 	f := sidecarFPS
-	args := []string{"tools/vision_sidecar.py"}
+	args := []string{P("tools", "vision_sidecar.py")}
 	if f > 0 {
 		args = append(args, "--fps", fmt.Sprintf("%.1f", f))
 	}

@@ -107,8 +107,8 @@ var (
 func LoadFaceCascade(paths ...string) (*Cascade, error) {
 	if len(paths) == 0 {
 		paths = []string{
-			"models/haarcascade_frontalface_default.xml",
-			"models/haarcascade_frontalface_alt2.xml",
+			P("models", "haarcascade_frontalface_default.xml"),
+			P("models", "haarcascade_frontalface_alt2.xml"),
 		}
 	}
 	var lastErr error

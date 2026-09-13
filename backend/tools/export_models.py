@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """把 yolov8n-pose.pt / yolov8n-face.pt 导出为 ONNX（一次性，运行时不联网）。"""
 import os
+import os as _os
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))  # backend/
 import shutil
 import sys
 
-os.environ.setdefault("YOLO_CONFIG_DIR", os.path.abspath("models/.ultralytics"))
-os.makedirs(os.environ["YOLO_CONFIG_DIR"], exist_ok=True)
+os.environ.setdefault("YOLO_CONFIG_DIR", _os.path.join(_ROOT, "models", ".ultralytics"))
+_os.makedirs(os.environ["YOLO_CONFIG_DIR"], exist_ok=True)
 
 from ultralytics import YOLO  # noqa: E402
 

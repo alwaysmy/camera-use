@@ -2,6 +2,8 @@
 """各后端速度 + 精度：每个后端在独立子进程里测（避免 onnxruntime 模块缓存冲突）。"""
 import json
 import os
+import os as _os
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))  # backend/
 import subprocess
 import sys
 

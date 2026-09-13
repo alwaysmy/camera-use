@@ -1447,7 +1447,7 @@ func (e *Engine) CalibrateDark(target string, frames int) (map[string]any, error
 		rgbS.SetDark(d)
 		e.events.add("calib", "暗场校准完成（RGB）")
 			out["rgb"] = map[string]any{"mean": round2(d.Mean), "hot_pixels": d.Hot,
-			"size": fmt.Sprintf("%dx%d", d.W, d.H), "saved": filepath.Join("calib", "dark_rgb.gob"),
+			"size": fmt.Sprintf("%dx%d", d.W, d.H), "saved": filepath.Join(P("calib"), "dark_rgb.gob"),
 			"enabled_now": true, "auto_load": true}
 	}
 	if target == "ir" || target == "both" {
@@ -1460,7 +1460,7 @@ func (e *Engine) CalibrateDark(target string, frames int) (map[string]any, error
 		}
 		irS.SetDark(d)
 		out["ir"] = map[string]any{"mean": round2(d.Mean), "hot_pixels": d.Hot,
-			"size": fmt.Sprintf("%dx%d", d.W, d.H), "saved": filepath.Join("calib", "dark_ir.gob"),
+			"size": fmt.Sprintf("%dx%d", d.W, d.H), "saved": filepath.Join(P("calib"), "dark_ir.gob"),
 			"enabled_now": true, "auto_load": true}
 	}
 	return out, nil
@@ -1475,16 +1475,16 @@ func (e *Engine) ClearDark() {
 		irS.SetDark(nil)
 	}
 	for _, tag := range []string{"rgb", "ir"} {
-		_ = os.Remove(filepath.Join("calib", "dark_"+tag+".gob"))
+		_ = os.Remove(filepath.Join(P("calib"), "dark_"+tag+".gob"))
 	}
 }
 
 func (e *Engine) Save() map[string]string {
 	out := map[string]string{}
-	_ = os.MkdirAll("captures", 0o755)
+	_ = os.MkdirAll(P("captures"), 0o755)
 	ts := time.Now().Format("20060102_150405")
 	if img, err := e.renderMosaic(); err == nil {
-		p := filepath.Join("captures", "view_"+ts+".jpg")
+		p := filepath.Join(P("captures"), "view_"+ts+".jpg")
 		if f, err := os.Create(p); err == nil {
 			_ = jpeg.Encode(f, img, &jpeg.Options{Quality: 95})
 			f.Close()
@@ -1494,7 +1494,7 @@ func (e *Engine) Save() map[string]string {
 	rgbS, irS, _, _ := e.Snapshot()
 	if rgbS != nil {
 		if img, _, _, _, _, _, _ := rgbS.Snapshot(); img != nil {
-			p := filepath.Join("captures", "rgb_"+ts+".jpg")
+			p := filepath.Join(P("captures"), "rgb_"+ts+".jpg")
 			if f, err := os.Create(p); err == nil {
 				_ = jpeg.Encode(f, img, &jpeg.Options{Quality: 95})
 				f.Close()
@@ -1504,7 +1504,7 @@ func (e *Engine) Save() map[string]string {
 	}
 	if irS != nil {
 		if _, gray, _, _, w, h, _ := irS.Snapshot(); gray != nil {
-			p := filepath.Join("captures", "ir_"+ts+".jpg")
+			p := filepath.Join(P("captures"), "ir_"+ts+".jpg")
 			g := image.NewGray(image.Rect(0, 0, w, h))
 			copy(g.Pix, gray)
 			if f, err := os.Create(p); err == nil {

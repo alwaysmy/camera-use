@@ -43,6 +43,7 @@ func main() {
 	probe := flag.Bool("probe", false, "原生采集链路自检")
 	wb := flag.Bool("wb", false, "探测相机的 IAMVideoProcAmp（白平衡/增益/饱和度等）")
 	vision := flag.Bool("vision", false, "启动时自动拉起旁路视觉进程（YOLO 人脸+骨架，需 python+onnxruntime）")
+	rootDir := flag.String("root", "", "资源根目录（默认=可执行文件所在目录，一般不用改）")
 	mcp := flag.Bool("mcp", false, "以 MCP 服务器模式运行（stdio，给 agent 用）")
 	visionFPS := flag.Float64("vision-fps", 0, "旁路推理频率，0=不限速（默认）")
 	wbSet := flag.Int("wb-set", -1, "设置白平衡值（配合 -wb）")
@@ -54,6 +55,7 @@ func main() {
 	facescale := flag.Float64("facescale", 1.15, "检测尺度步长")
 	facenn := flag.Int("facenn", 3, "最少邻居票数")
 	flag.Parse()
+	initBaseDir(*rootDir) // 路径锚定：先定资源根目录，后面所有 models/calib/captures 都相对它
 
 	if *facetest != "" {
 		runFaceTest(*facetest, *facewin, *facemin, *facescale, *facenn)
@@ -98,6 +100,7 @@ return
 }
 addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	_, _, cfg := e.Stats()
+	fmt.Printf("[backend] 资源目录 %s\n", RootDir())
 	fmt.Printf("[backend] Go %s / %d 核 | RGB %s %dx%d | IR %v\n",
 		runtime.Version(), runtime.NumCPU(), cfg.Codec, cfg.W, cfg.H, cfg.IR)
 	fmt.Printf("[backend] 控制台 http://%s/   (Ctrl+C 退出)\n", addr)
@@ -339,12 +342,12 @@ func runWhiteBalance(setVal int, auto bool) {
 // startVisionSidecar —— 拉起旁路视觉进程（失败不影响主程序：人脸会回退到原生 Viola-Jones）
 func startVisionSidecar(fps float64) {
 py := "python"
-args := []string{"tools/vision_sidecar.py", "--fps", fmt.Sprintf("%.1f", fps)}
-if _, err := os.Stat("tools/vision_sidecar.py"); err != nil {
+args := []string{P("tools", "vision_sidecar.py"), "--fps", fmt.Sprintf("%.1f", fps)}
+if _, err := os.Stat(P("tools", "vision_sidecar.py")); err != nil {
 fmt.Println("[vision] 找不到 tools/vision_sidecar.py，跳过旁路")
 return
 }
-if _, err := os.Stat("models/yolov8n-pose.onnx"); err != nil {
+if _, err := os.Stat(P("models", "yolov8n-pose.onnx")); err != nil {
 fmt.Println("[vision] 缺 ONNX 模型（先跑 python tools/export_models.py），跳过旁路")
 return
 }
