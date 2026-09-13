@@ -98,8 +98,8 @@ camera_use/
 ├── camera_preview.py   # 极简预览脚本
 ├── tests/              # 回归测试（默认离线跑，--hw 连硬件）
 ├── docs/               # 文档（01~07）
-├── archive/probes/     # 排查期的实验脚本（mf_* / winrt_* / uvc_* …）
-└── archive/test-output/# 排查期的测试图片（.gitignore，仅本地留存）
+└── archive/            # 排查期的实验脚本与测试图（**已 gitignore，不进仓库**；
+                        #  里面路径是当时那台机器写死的，只作本地存档）
 ```
 
 `camera_core` 是唯一真相来源，其它模块都走它：
