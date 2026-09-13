@@ -5,6 +5,19 @@
 
 ---
 
+
+## 效果
+
+| 控制台（三栏 + 底部事件/趋势） | 融合 + 缩略图（RGB / IR / 补光差分 / 边缘） |
+|---|---|
+| ![控制台](docs/images/yolo_overlay_in_app.jpg) | ![融合](docs/images/native_go_fusion.jpg) |
+
+| 可见光原图（HP FHD 相机） | 红外黑白（Windows Hello 相机） |
+|---|---|
+| ![RGB](docs/images/rgb_hp_fhd_auto.jpg) | ![IR](docs/images/ir_portrait.jpg) |
+
+> 上述截图来自开发者的实际房间，仅作效果演示；如涉及隐私请自行替换。
+
 ## 零、主线：原生 Go 后端（零依赖、离线可构建）
 
 `backend/` 是一套**纯 Go 标准库 + Windows syscall** 的实现，

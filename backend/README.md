@@ -206,7 +206,7 @@ backend/
 ## 怎么启动
 
 ```powershell
-cd D:\MyProjects\AI\camera_use\backend
+cd <REPO>\backend
 .\start.ps1
 ```
 

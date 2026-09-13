@@ -9,14 +9,14 @@ import sys
 if len(sys.argv) > 1 and sys.argv[1] == "--child":
     mode = sys.argv[2]
     if mode == "ortgpu":
-        sys.path.insert(0, r"D:\MyProjects\AI\camera_use\backend\.ortgpu")
+        sys.path.insert(0, r"<REPO>\backend\.ortgpu")
     import glob
     import time
 
     import numpy as np
     import onnxruntime as ort
 
-    SP = r"C:\Users\AlwaysTS\AppData\Local\Programs\Python\Python311\Lib\site-packages\nvidia"
+    SP = r"<PYTHON>\Lib\site-packages\nvidia"
     for d in glob.glob(os.path.join(SP, "*", "bin")):
         try:
             os.add_dll_directory(d)
@@ -25,7 +25,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--child":
         os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
 
     out = {"mode": mode, "version": ort.__version__, "providers": ort.get_available_providers(), "bench": {}}
-    M = r"D:\MyProjects\AI\camera_use\backend\models"
+    M = r"<REPO>\backend\models"
     for name, shape in (("yolov8n-face.onnx", [1, 3, 640, 640]), ("yolov8n-pose.onnx", [1, 3, 640, 640])):
         p = os.path.join(M, name)
         for prov in ort.get_available_providers():

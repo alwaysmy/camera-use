@@ -9,7 +9,7 @@ os.makedirs(os.environ["YOLO_CONFIG_DIR"], exist_ok=True)
 
 from ultralytics import YOLO  # noqa: E402
 
-os.chdir(r"D:\MyProjects\AI\camera_use\backend")
+os.chdir(r"<REPO>\backend")
 
 jobs = [("models/yolov8n-pose.pt", "models/yolov8n-pose.onnx"),
         ("models/yolov8n-face.pt", "models/yolov8n-face.onnx")]
