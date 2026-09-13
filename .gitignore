@@ -1,0 +1,44 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── 运行产物 ────────────────────────────────────────────
+# 注意：archive/probes/ 里的实验脚本值得入库（纯文本，很小），不要忽略
+# archive/test-output/ 有几百张测试图，只留在本地
+archive/test-output/
+photos/
+captures/
+*.avi
+*.log
+
+# ── 编辑器 / 系统 ───────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+
+# ── 原生 Go 后端 ────────────────────────────────────────
+backend/*.exe
+backend/*.exe~
+backend/captures/
+backend/calib/
+captures/
+calib/
+
+# 旁路视觉：只留 ONNX（运行时用），.pt 是导出源不必入库
+backend/models/*.pt
+backend/models/.ultralytics/
+backend/models/yolov8n-face.pt
+backend/models/yolov8n-pose.pt
+
+# CUDA 试装目录（--target 装的，不入库）
+backend/.ortgpu/
+
+# 测试图与个人照片（非工程内容，不入库）
+tempIMG/
+docs/images/
+archive/test-output/
