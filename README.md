@@ -1,14 +1,19 @@
-# Camera Use — Windows 摄像头控制工具集
+# Camera Use — Windows 双摄（RGB + 红外）原生工具集
 
-解决 **OpenCV 打开 USB 摄像头画面过暗**的问题，并把这台机器上摄像头的真实情况
-（含被隐藏的 IR 红外相机）摸清楚。
+用一台普通的 **Windows Hello 笔记本摄像头**，做出一套「可见光 + 红外」的实时成像与感知系统：
+**RGB + IR 实时融合**（暗光下看清人）、**原生曝光/白平衡直控**、**暗场校准**、
+**人物 / 人脸 / 骨架 / 手势检测**，以及给 AI agent 用的 **MCP 服务器**（让 agent 能"看见"物理世界）。
 
----
+后端是**纯 Go 标准库 + Windows syscall**：直接调 Media Foundation 采集、SetupAPI 找设备，
+**零第三方依赖、离线可构建**（`GOPROXY=off` 能编过）。
 
+> **缘起**：用 OpenCV 打开这个摄像头画面**永远是暗的** —— 根因是它只会用 `IAMCameraControl` 的
+> Manual 标志，而正确做法是把曝光切到 **Auto**。为此把整条链路（设备发现 → 采集 → 处理 → 呈现）
+> 重写成了原生实现，顺带把被 Windows Hello 藏起来的**红外相机**也用上了。
 
 ## 效果
 
-| 控制台（三栏 + 底部事件/趋势） | 融合 + 缩略图（RGB / IR / 补光差分 / 边缘） |
+| 控制台（三栏 + 底部实时事件/趋势） | RGB + IR 融合 + 四路缩略图 |
 |---|---|
 | ![控制台](docs/images/yolo_overlay_in_app.jpg) | ![融合](docs/images/native_go_fusion.jpg) |
 
@@ -16,35 +21,142 @@
 |---|---|
 | ![RGB](docs/images/rgb_hp_fhd_auto.jpg) | ![IR](docs/images/ir_portrait.jpg) |
 
-> 上述截图来自开发者的实际房间，仅作效果演示；如涉及隐私请自行替换。
+> 截图来自开发者的实际房间，仅作效果演示；如涉及隐私请自行替换。
 
-## 零、主线：原生 Go 后端（零依赖、离线可构建）
+## 能做什么
 
-`backend/` 是一套**纯 Go 标准库 + Windows syscall** 的实现，
-**不依赖 OpenCV / DirectShow / Python / 外网**：Media Foundation 直接采 RGB 与 IR，
-SetupAPI 直接找设备，`IAMCameraControl` 原生控曝光。
+**采集与设备**
+- Media Foundation 直采，原生枚举设备；**发现被隐藏的 IR 相机**（它不在 DirectShow/MF 枚举里，得用 SetupAPI 按设备接口类别找）
+- 码流可选 **MJPG / NV12 / YUY2**，分辨率到 1080p；**带宽规则**自动判断能不能和 IR 同开
+- **原生曝光控制**（`IAMCameraControl`）：Auto / Manual + 范围读取 —— 根治"画面过暗"
+- **原生白平衡/画质直控**（`IAMVideoProcAmp`）：色温 2800~6500K，含**自动校准**（扫两轮取最中性档）
+
+**成像**
+- **RGB + IR 实时融合**：IR 出亮度、RGB 出色度，暗光下比单用可见光清楚得多
+- **暗场校准**：遮住镜头采 30 帧，扣掉固定图案噪声/读出偏置/热噪点
+- **色彩处理**：自实现 LAB（对齐 OpenCV）、白平衡（截尾均值）、**暗部去彩**（治"暗处发紫"）、Gamma
+- 多视图：融合 / 可见光 / 红外 / **边缘图（IR 增强）** / **补光差分** / 红外伪彩 / **暗场热点图** / **配准误差图**
+- 自动配准 RGB 与 IR（梯度图 + 粗搜 + 细搜，约 100ms）
+
+**感知**
+- **人物存在与位置**：IR 差分 + 运动检测，**无模型**（静止的人也能测到）
+- **人脸检测**：原生 Viola-Jones（cascade XML 当数据文件用，零依赖）**+ 旁路 YOLO 人脸**
+- **姿态骨架**（YOLOv8n-pose 17 点）与**手部 21 点 + 五指手势**
+- 旁路推理走 **DirectML(GPU)**，实测比 CPU 快约 20 倍（且比 CUDA 还快 3.7 倍）
+
+**呈现与控制**
+- 单条 **MJPEG 拼图流**（主视图 + 4 缩略图拼一张，浏览器每帧只解一张 JPEG）
+- Web 控制台：三栏布局 + **底部实时状态条 / 事件时间线 / 趋势图**
+- 事件流：谁进来了/谁走了、手势变化、人脸增减、采集切换、暗场校准（带时间戳）
+- **相机按需打开、空闲自动释放**（不长期占用摄像头）
+
+**给 Agent**
+- **MCP 服务器**（stdio，纯标准库）：`camera_look` / `camera_observe` / `camera_control` 三个参数化工具
+- 配套 **`SKILL.md`**：工作流、五个必踩的坑、数字怎么读
+
+## 快速开始
+
+需要 **Windows 10/11 + Go 1.21+**（无需 OpenCV / Python / 网络）。
 
 ```powershell
-cd backend
-.\build.ps1                  # 离线构建（GOPROXY=off 证明不需要网络）
-.\camera_backend.exe -open    # 控制台 http://127.0.0.1:8770/
+git clone https://github.com/alwaysmy/camera-use.git
+cd camera-use/backend
+
+.\build.ps1            # 离线构建（GOPROXY=off，证明零依赖）
+.\start.ps1            # 一键启动：检查依赖 → 停旧实例 → 起后端 → 开浏览器
 ```
 
-> *[截图 原生 Go 控制台 —— 未随仓库发布（含个人影像，见 tempIMG/）]*
+控制台在 **http://127.0.0.1:8770/**。
 
-**实测性能**（640×480 RGB + 340×340 IR）：算子合计 **10.5 ms/帧 → 单核 95 fps**，
-拼图 MJPEG 流 **24.7 fps**，RGB 14.9 fps(MJPG) + IR 29.8 fps(YUY2) 并发。
+**首次使用建议三步**
+1. **暗场校准** —— 用不透光物**完全盖住镜头**（RGB 和 IR 两个窗口都要遮），点「暗场校准」
+2. **相机白平衡** —— 点「自动校准」扫两轮取最中性档（**灯光变了要重跑**，或直接用自动档）
+3. **想要 GPU 推理** —— `pip install onnxruntime-directml mediapipe`（可选，装了旁路才快）
 
-**前端性能**：只开 **一条 MJPEG 流**（主视图 + 三个缩略图拼成一张，浏览器每帧只解一张
-JPEG）；切到后台自动断开流；状态轮询 1.2s 且仅在可见时进行。
+**不用脚本也行**
+```powershell
+.\camera_backend.exe -help                      # 看全部参数（注意 -h 是"高度"不是 help）
+.\camera_backend.exe -open                      # 最简：MJPG + IR
+.\camera_backend.exe -codec nv12 -vision -open  # 推荐：未压缩 + YOLO 旁路
+.\camera_backend.exe -probe                     # 采集链路自检（不需要打开控制台）
+```
 
-详见 **[backend/README.md](backend/README.md)**（含码流选择、带宽规则、HTTP 接口表）。
+## 给 Agent 用（MCP）
 
-> 下面的 Python 实现是**参考实现 / 调查过程的产物**（它记录了怎么一步步把 IR 挖出来、
-> 怎么定位"OpenCV 只用 Manual 标志"这个根因）。功能仍然可用，但新功能只加在 Go 侧。
+```json
+{
+  "mcpServers": {
+    "camera": {
+      "command": "D:\\path\\to\\camera-use\\backend\\camera_backend.exe",
+      "args": ["-mcp"]
+    }
+  }
+}
+```
+
+| 工具 | 参数 | 作用 |
+|---|---|---|
+| `camera_look` | `view`(8 种) / `quality` / `max_width` / **`detect`** | 看画面，返回 JPEG。`detect:true` 才拉起 YOLO 叠加 |
+| `camera_observe` | `what` = summary/person/face/pose/hand/state/events | 观察：一句话概述 / 结构化检测 / 事件流 |
+| `camera_control` | `config` / `exposure` / `camera_wb` / `params` | 反控相机与处理参数 |
+
+**即用即开**：MCP 进程毫秒级起来（不碰相机）；首次需要画面才开相机（1~2s）；
+`camera_look` 不带 `detect` **不会启动 YOLO**；空闲 60s 释放相机、120s 关闭旁路。
+
+> **先读 [`SKILL.md`](SKILL.md)** —— 五个坑（未压缩+IR 会掉到 0fps、IR 相机独占、
+> 暗场必须先遮镜头、白平衡跟灯光绑定、LED 差 <12 时 IR 差分不可靠）不预先知道一定会踩。
+
+## 项目结构
+
+```
+backend/
+├── camera_backend.exe    产物（build.ps1 生成）
+├── build.ps1 / start.ps1  离线构建 / 一键启动
+├── src/                  18 个 .go —— 全部实现
+│   ├── mf.go devices.go camera.go    Media Foundation / SetupAPI / 相机会话
+│   ├── yuv.go lab.go image.go align.go  像素管线（YCbCr → LAB 融合 → 编码）
+│   ├── face.go person.go vision.go  检测（Viola-Jones / IR差分+运动 / 旁路结果绘制）
+│   ├── engine.go web.go probe.go   引擎 / HTTP+前端 / 自检
+│   ├── mcp.go lifecycle.go paths.go MCP 服务器 / 按需启停 / 路径锚定
+│   └── events.go lut.go             事件流 / INFERNO 色表
+├── tools/                Python：模型导出 / 旁路推理 / 后端基准
+├── models/               ONNX + MediaPipe（运行时零联网）
+└── captures/ calib/      运行期产物（.gitignore）
+```
+
+## 实测数据（本机：Ryzen 9 7945HX + RTX 5070 Ti）
+
+| 项 | 数值 |
+|---|---|
+| 算子（640×480 融合：warp + fuse + 编码） | **7.8 ms/帧** → 单核 128 fps |
+| 拼图 MJPEG 流 | **30 fps**（客户端实测 29.6），单帧 12 ms |
+| RGB + IR 并发 | 14.9 fps(NV12) + 29.8 fps(YUY2) |
+| 旁路推理（人脸+骨架+手部，DirectML） | **face 1.4ms + pose 2.4ms**（CPU 是 20 倍慢） |
+| 推理后端对比 | DirectML **比 CUDA 快 3.7×**、比 CPU 快 20×（小模型上 CUDA 的启动开销占主导） |
+| 空闲 CPU | **0%**（没人看流就不渲染） |
+
+## 已知限制
+
+- **只在 Windows 上跑**（Media Foundation / SetupAPI / IAMVideoProcAmp 都是 Windows 专有）
+- 未压缩码流（YUY2/NV12）与 IR **不能同时开**：实测 YUY2+IR 会把 RGB 挤到 **0 fps**（USB 带宽，非故障）
+- **IR 相机独占**：Windows Hello 开着时别的程序用不了；同机同一时刻只能一个进程用
+- 相机白平衡**跟灯光绑定**：手动档在校准后换灯会偏色，需要重跑自动校准
+- 旁路（YOLO/MediaPipe）需要 Python + onnxruntime + mediapipe，是**可选组件**；不装则人脸退回原生 Viola-Jones
+
+## 许可证
+
+**AGPL-3.0** —— 因为仓库内捆绑了 Ultralytics YOLOv8 权重（其许可证为 AGPL-3.0）。
+第三方组件与许可证清单见 [`NOTICE.md`](NOTICE.md)。
+
+> **想改成 MIT**：删掉 `backend/models/yolov8n-*.onnx` 两个文件，把 LICENSE/NOTICE 换成 MIT 即可 ——
+> 旁路会提示缺模型，`python tools/export_models.py` 可一键重新生成。
 
 ---
 
+# 附录：早期 Python 实现（历史存档）
+
+下面是最初用 Python + OpenCV + duvc-ctl 写的版本。**功能已被上面的原生 Go 实现覆盖**，
+保留它是为了记录排查过程（怎么把 IR 相机挖出来、怎么定位"OpenCV 只用 Manual 标志"这个根因）。
 ## 一、根本原因
 
 OpenCV 的 DirectShow 后端调用 `IAMCameraControl::Set()` 时把 Flags 硬编码成
@@ -236,6 +348,4 @@ python tests/test_camera_core.py --hw         # 额外跑真实摄像头
 | **[07_IR波段与可见光融合](docs/07_IR波段与可见光融合.md)** | **波段判别 / 融合原理与标定 / 补光灯可控性 / 融合应用（新增）** |
 | [CAMERA_GUIDE.md](CAMERA_GUIDE.md) | 面向使用者的设备说明与 AI 视觉接入建议 |
 
-## 许可证
-
-MIT License
+> 许可证见文首「许可证」一节（AGPL-3.0）。
