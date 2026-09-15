@@ -32,6 +32,13 @@ import (
 	"time"
 )
 
+// mcpDebug —— MCP 模式是否打印诊断信息（包级变量，供 mcp.go 读取；flag 在 main 里注册）
+//
+// 默认关闭：MCP 服务器应保持静默 —— 客户端会把子进程输出收集起来，
+// 累积到阈值会 spill 到临时文件；若该目录已被清理，客户端会直接崩溃退出
+// （实测 DSH 报 ENOENT: ...\dsh-subprocess-*\*-stdout.log 后挂掉）。
+var mcpDebug bool
+
 func main() {
 	port := flag.Int("port", 8770, "监听端口")
 	codec := flag.String("codec", "mjpg", "码流 mjpg|yuy2|nv12|auto")
@@ -45,6 +52,7 @@ func main() {
 	vision := flag.Bool("vision", false, "启动时自动拉起旁路视觉进程（YOLO 人脸+骨架，需 python+onnxruntime）")
 	rootDir := flag.String("root", "", "资源根目录（默认=可执行文件所在目录，一般不用改）")
 	mcp := flag.Bool("mcp", false, "以 MCP 服务器模式运行（stdio，给 agent 用）")
+	flag.BoolVar(&mcpDebug, "debug", false, "MCP 模式下把诊断信息打到 stderr（默认静默）")
 	visionFPS := flag.Float64("vision-fps", 0, "旁路推理频率，0=不限速（默认）")
 	wbSet := flag.Int("wb-set", -1, "设置白平衡值（配合 -wb）")
 	wbAuto := flag.Bool("wb-auto", false, "切回自动白平衡（配合 -wb）")

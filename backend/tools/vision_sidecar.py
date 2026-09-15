@@ -325,8 +325,11 @@ def main():
             fails = 0
             if not args.quiet:
                 gs = " ".join(h["gesture"] for h in hands) if hands else "-"
-            print(f"[sidecar] {w}x{h} 人脸 {len(faces)} 骨架 {len(poses)} 手 {len(hands)}[{gs}] "
-                      f"(face {ms_f:.0f} pose {ms_p:.0f} hand {ms_h:.0f}ms 总 {((time.perf_counter()-t0)*1000):.0f}ms)")
+                # ⚠ 必须走 stderr：本进程的 stdout 是 MCP 的 JSON-RPC 协议通道，
+                # 往 stdout 打印会直接污染协议（DSH 等客户端会解析失败并反复重启）。
+                print(f"[sidecar] {w}x{h} 人脸 {len(faces)} 骨架 {len(poses)} 手 {len(hands)}[{gs}] "
+                      f"(face {ms_f:.0f} pose {ms_p:.0f} hand {ms_h:.0f}ms 总 {((time.perf_counter()-t0)*1000):.0f}ms)",
+                      file=sys.stderr)
         except Exception as e:  # noqa: BLE001
             fails += 1
             if fails in (1, 10) or fails % 60 == 0:

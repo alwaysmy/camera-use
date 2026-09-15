@@ -117,7 +117,11 @@ func EnsureSidecar(fps float64) error {
 		args = append(args, "--fps", fmt.Sprintf("%.1f", f))
 	}
 	cmd := exec.Command("python", args...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	// ⚠ 旁路子进程的 stdout **绝不能**接 os.Stdout ——
+	// MCP 模式下 stdout 是 JSON-RPC 协议通道，Python 的任何 print 都会直接污染它
+	// （实测 tools/vision_sidecar.py 曾有走 stdout 的 print，且在主循环里每帧一次）。
+	// 统一改接 stderr：协议安全，诊断信息仍可见。
+	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("拉起旁路失败: %w", err)
 	}

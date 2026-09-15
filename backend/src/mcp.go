@@ -64,7 +64,13 @@ func RunMCP(e *Engine) {
 	if rgbS != nil || irS != nil {
 		camState = "**已打开**（不该出现在 MCP 启动时 —— 检查懒加载是否漏了路径）"
 	}
-	fmt.Fprintf(os.Stderr, "[mcp] 已就绪（stdio）｜相机 %s｜把本进程接进 agent 的 MCP 配置即可\n", camState)
+	// 默认**静默**：MCP 服务器不该刷屏。
+	// 客户端（如 DSH）会把子进程输出收集起来，累积到阈值会 spill 到临时文件，
+	// 若该目录已被清理，客户端会直接崩溃退出（实测 DSH 报 ENOENT 后挂掉）。
+	// 需要诊断时加 -debug。
+	if mcpDebug {
+		fmt.Fprintf(os.Stderr, "[mcp] 已就绪（stdio）｜相机 %s\n", camState)
+	}
 
 	sc := bufio.NewScanner(os.Stdin)
 	sc.Buffer(make([]byte, 1<<20), 1<<24)
